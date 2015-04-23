@@ -136,51 +136,93 @@ function printHtml (id, text) {
   document.getElementById(id).innerText = text;
 }
 
-/**
- * Load the image in question and display it, along with its metadata.
- */
-document.addEventListener("DOMContentLoaded", function () {
-  // The URL of the image to load is passed on the URL fragment.
-  var imageUrl = window.location.hash.substring(1);
-  if (imageUrl) {
-    // Use the ImageInfo library to load the image and parse it.
-    ImageInfo.loadInfo(imageUrl, getImageInfoHandler(imageUrl));
 
-    utils.getSHA256Hash(imageUrl, function (hash) {
-      printHtml('sha256', hash)
-    })
-
-    var blkhash = {
-      methods: [1, 2],
-      bits: 16
-    }   
-
-    blockhashjs.blockhash(imageUrl, blkhash.bits, blkhash.methods[0], function (error, result) {
-      console.warn(error)
-      printHtml('blockhash-m1', result.toString())
-    })
-
-    blockhashjs.blockhash(imageUrl, blkhash.bits, blkhash.methods[1], function (error, result) {
-      console.warn(error)
-      printHtml('blockhash-m2', result.toString())
-    })
-
-    printHtml('fingerprint', new Fingerprint().get().toString())
-
+function setFactomEntry (hashes) {
     var fctmOptions = {
       host: 'http://demo.factom.org',
       port: '8088',
       pubkey: 'wallet'
     }
 
+    console.warn(hashes)
+    var chainId = hashes.imageUrl;
+    var extIds = [hashes.sha256, hashes.blockhash];
+    var data = ImageInfo.getAllFields(hashes.imageUrl);
+
+    data.imageUrl= hashes.imageUrl;
+    data.browserFingerPrint = new Fingerprint().get().toString();
+
     var fctm = new factomjs({host: fctmOptions.host, port: fctmOptions.port});
 
-    fctm.creditbalance(fctmOptions.pubkey);
+    // fctm.creditbalance(fctmOptions.pubkey);
 
-    fctm.buycredit(fctmOptions.pubkey, 100);
+    // fctm.buycredit(fctmOptions.pubkey, 100);
 
-    fctm.dblocksbyrange(4, 4);
-    // factomjs.submitentry('', '', '');
-    // factomjs.entry('');
+    // fctm.dblocksbyrange(4, 4);
+
+    var chain_id = data.browserFingerPrint + '/' + hashes.chainId;
+
+    utils.convertImgToBase64(hashes.imageUrl, function (base64Img) {
+
+      data.raw = 'IMAGE:'+base64Img;
+
+      fctm.submitentry(chain_id, extIds, data);
+
+      printHtml('chainId', chain_id)
+      printHtml('extIds', extIds.toString())
+      printHtml('Entrydata', JSON.stringify(data, undefined, 4))
+    })
+
+    // fctm.entry('');
+}
+
+function getBlockhash (imageUrl, cb) {
+    var blkhash = {
+      methods: [1, 2],
+      bits: 16
+    }   
+
+    blockhashjs.blockhash(imageUrl, blkhash.bits, blkhash.methods[0], function (error, result) {
+      if (error) console.error(error)
+      printHtml('blockhash-m1', result.toString())
+      if (cb) cb(result.toString());
+    })
+
+    blockhashjs.blockhash(imageUrl, blkhash.bits, blkhash.methods[1], function (error, result) {
+      if (error) console.error(error)
+      printHtml('blockhash-m2', result.toString())
+    })
+
+}
+
+/**
+ * Load the image in question and display it, along with its metadata.
+ */
+document.addEventListener("DOMContentLoaded", function () {
+  // The URL of the image to load is passed on the URL fragment.
+  var data = utils.parseQueryArgs(window.location.hash.substring(1))
+  var imageUrl = data.imageUrl;
+
+
+  if (imageUrl) {
+    // Use the ImageInfo library to load the image and parse it.
+    ImageInfo.loadInfo(imageUrl, getImageInfoHandler(imageUrl));
+
+    utils.getSHA256Hash(imageUrl, function (hash) {
+      printHtml('sha256', hash)
+      getBlockhash(imageUrl, function (blockhash) {
+        setFactomEntry({
+          imageUrl: imageUrl,
+          sha256: hash,
+          blockhash: blockhash,
+          chainId: data.chainId
+        })
+      })
+    })
+
+
+    printHtml('fingerprint', new Fingerprint().get().toString())
+
+
   }
 });

@@ -4,6 +4,8 @@
   "description" : "Get and hash image info in Factom",
   "background" : { "scripts": ["background.js"] },
   "permissions" : [
+    "storage",
+    "notifications",
     "contextMenus",
     "tabs",
     "http://*/*",
