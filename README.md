@@ -1,2 +1,2 @@
 # factomize-it
-factomize.it chrome extnesion
+factomize.it chrome extension
